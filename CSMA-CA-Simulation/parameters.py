@@ -14,11 +14,11 @@ from scipy.constants import c
 SIM_TIME = 2*1e9
 
 PRINT_LOGS = True
-NUMBER_OF_NODES = 4
+NUMBER_OF_NODES = 5
 STARTING_RATE = 5
 TARGET_RATE = 5
 
-NODE_POSITION = [[14,2],[39,30],[14,17],[36,33]]    # NONE while NODE_POSITION remains random
+NODE_POSITION = [[10,10],[19,5],[1,7],[16,13],[3,18]]    # NONE while NODE_POSITION remains random
 # The length of list NODE_POSITION should be the same as NUMBER_OF_NODES
 
 ### RADIO PARAMETERS

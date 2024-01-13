@@ -18,13 +18,16 @@ class Stats(object):
         plt.figure()
         i=0
         for node in nodes:
-            i+=1
-            plt.scatter(node.latitude, node.longitude,label='Node '+str(i))
+            if i == 0:
+                plt.scatter(node.latitude, node.longitude,label='AP')
+            else:
+                plt.scatter(node.latitude, node.longitude,label='Node '+str(i))
+            i += 1
         plt.legend()
         plt.xlabel('x')
         plt.ylabel('y')
-        plt.xlim([0,40])
-        plt.ylim([0,40])
+        plt.xlim([0,20])
+        plt.ylim([0,20])
         plt.legend()
         file = self.filename+'/position' + str(parameters.TARGET_RATE) + '.pdf'
         plt.savefig(file, bbox_inches='tight', dpi=250)

@@ -41,15 +41,18 @@ def main():
     nodes = []
 
     for i in range(0, parameters.NUMBER_OF_NODES):
-        name = "Node" + str(i)
-        [pos1,pos2]=parameters.NODE_POSITION[i] if parameters.NODE_POSITION else [random.randint(0,40),random.randint(0,40)]
+        if i == 0:
+            name = "AP"
+        else:
+            name = "Node" + str(i)
+        [pos1,pos2]=parameters.NODE_POSITION[i] if parameters.NODE_POSITION else [random.randint(0,20),random.randint(0,20)]
         nodes.append(node.Node(env, name, eth, pos1, pos2, statistics))
 
-    for i in range(0, parameters.NUMBER_OF_NODES):
-        destinations = []
-        for j in range(0, parameters.NUMBER_OF_NODES):
-            if i != j:
-                destinations.append(nodes[j].name)
+    for i in range(1, parameters.NUMBER_OF_NODES):
+        destinations = ['AP']
+        # for j in range(0, parameters.NUMBER_OF_NODES):
+        #     if i != j:
+        #         destinations.append(nodes[j].name)
         # 设定节点事件
         env.process(nodes[i].keepSendingIncreasing(parameters.STARTING_RATE, parameters.TARGET_RATE, destinations))
         #env.process(nodes[i].keepSending(parameters.TARGET_RATE, destinations))
