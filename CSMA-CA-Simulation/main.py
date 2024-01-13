@@ -28,6 +28,7 @@ class Logger(object):
 
 
 def main():
+    random.seed(parameters.RANDOM_SEED)
 
     file='results_'+datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     sys.stdout = Logger(file)

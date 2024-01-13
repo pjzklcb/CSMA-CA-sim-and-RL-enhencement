@@ -113,7 +113,7 @@ TARGET_RATE=5
 > BITRATE = 54000000 # 54 Mbit/s, 802.11g 20 MHz channels
 > BIT_TRANSMISSION_TIME = 1/BITRATE * 1e9
 > NOISE_FLOOR = 1e-9
-> PHY_HEADER_LENGTH = 128
+> PHY_PREAMBLE_TIME = 32
 > PACKET_LOSS_RATE = 0.01 # 1% of packets are corrupted
 >  
 > ### MAC PARAMETERS
@@ -126,7 +126,7 @@ TARGET_RATE=5
 > CW_MIN = 16
 > CW_MAX = 1024
 > # ack timeout = transmission time of biggest possible pkt + rtt for 300m distance + sifs + ack transmission time
-> ACK_TIMEOUT = (MAX_MAC_PAYLOAD_LENGTH + MAC_HEADER_LENGTH + PHY_HEADER_LENGTH) * BIT_TRANSMISSION_TIME + 2 * round((300 / c) * pow(10, 9), 0) + SIFS_DURATION + ACK_LENGTH * BIT_TRANSMISSION_TIME
+> ACK_TIMEOUT = (MAX_MAC_PAYLOAD_LENGTH + MAC_HEADER_LENGTH) * BIT_TRANSMISSION_TIME + PHY_PREAMBLE_TIME + 2 * round((300 / c) * pow(10, 9), 0) + SIFS_DURATION + ACK_LENGTH * BIT_TRANSMISSION_TIME
 >
 > # CJH 2022/5/11
 > def get_attrs(li):

@@ -46,7 +46,7 @@ class Phy(object):
                 print('Time %d: %s PHY starts transmission of %s' % (self.env.now, self.name, phyPkt.macPkt.id))
         self.ether.transmit(phyPkt, self.latitude, self.longitude, True, False) # beginOfPacket=True, endOfPacket=False
 
-        duration = macPkt.length * parameters.BIT_TRANSMISSION_TIME + parameters.PHY_HEADER_LENGTH
+        duration = macPkt.length * parameters.BIT_TRANSMISSION_TIME + parameters.PHY_PREAMBLE_TIME
 
         while True:
             if duration < parameters.SLOT_DURATION:

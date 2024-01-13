@@ -32,7 +32,7 @@ WAVELENGTH = c/FREQUENCY
 BITRATE = 54000000 # 54 Mbit/s, 802.11g 20 MHz channels
 BIT_TRANSMISSION_TIME = 1/BITRATE * 1e9
 NOISE_FLOOR = 1e-9
-PHY_HEADER_LENGTH = 128
+PHY_PREAMBLE_TIME = 32
 PACKET_LOSS_RATE = 0.01 # 1% of packets are corrupted
  
 ### MAC PARAMETERS
@@ -46,7 +46,7 @@ CW_MIN = 16
 CW_MAX = 1024
 MAX_RETRANSMITION_TIME = 5
 # ack timeout = transmission time of biggest possible pkt + rtt for 300m distance + sifs + ack transmission time
-ACK_TIMEOUT = (MAX_MAC_PAYLOAD_LENGTH + MAC_HEADER_LENGTH + PHY_HEADER_LENGTH) * BIT_TRANSMISSION_TIME + 2 * round((300 / c) * pow(10, 9), 0) + SIFS_DURATION + ACK_LENGTH * BIT_TRANSMISSION_TIME
+ACK_TIMEOUT = (MAX_MAC_PAYLOAD_LENGTH + MAC_HEADER_LENGTH) * BIT_TRANSMISSION_TIME + PHY_PREAMBLE_TIME + 2 * round((300 / c) * pow(10, 9), 0) + SIFS_DURATION + ACK_LENGTH * BIT_TRANSMISSION_TIME
 # RL
 action_space = ['0','1','2','4','8','16','32','64','128','256']#,'512']
 learning_rate = 0.01
