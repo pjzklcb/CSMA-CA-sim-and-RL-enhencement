@@ -17,8 +17,6 @@ class Node(object):
 
 
     def send(self, destination, length, id):
-        if self.name == "Node 2":
-            yield self.env.timeout(2000)
         if parameters.PRINT_LOGS:
             print('Time %d: %s sends %s to %s' % (self.env.now, self.name, id, destination))
         yield self.env.process(self.mac.send(destination, length, id))
@@ -52,5 +50,5 @@ class Node(object):
             length = random.randint(0, parameters.MAX_MAC_PAYLOAD_LENGTH)       # PAYLOAD_LENGTH
             id = str(self.env.now) + '_' + self.name + '_' + destination
             if parameters.PRINT_LOGS:
-                print('Time %d: %s sends %s to %s' % (self.env.now, self.name, id, destination))
-            yield self.env.process(self.mac.send(destination, length, id))
+                print('Time %d, %s: %s generated' % (self.env.now, self.name, id))
+            self.mac.enqueue(destination, length, id)

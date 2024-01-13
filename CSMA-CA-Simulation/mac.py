@@ -16,27 +16,38 @@ class Mac(object):
         self.longitude = self.node.longitude
         self.stats = self.node.stats
         self.phy = phy.Phy(self)
+        self.send = self.env.process(self.send())
+        self.queue = []
         self.pendingPackets = {}    # associate packets I'm trying to transmit and timeouts for retransmissions
-        self.retransmissionCounter = {}     # associate packets I'm trying to transmit and transmission attempts
         self.isSensing = False
-        self.packetsToSend = []
         self.sensing = None  # keep sensing process
 
-    def send(self, destination, payloadLength, id):
+    def enqueue(self, destination, payloadLength, id):
+        if len(self.queue) > parameters.MAX_MAC_QUEUE_SIZE:
+            print('Time %d, %s: MAC queue full, dropping packet %s' % (self.env.now, self.name, id))
+            self.stats.logDroppedPacket(id, self.env.now)
+            return
+
         length = payloadLength + parameters.MAC_HEADER_LENGTH
         macPkt = macPacket.MacPacket(self.name, destination, length, id, False)
+        self.queue.append(macPkt)
         self.stats.logGeneratedPacket(id, self.env.now)
-        self.retransmissionCounter[macPkt.id] = 0
 
-        # sensing phase
-        if self.phy.isSending:   # I cannot sense while sending
-            yield self.phy.transmission   # wait for my phy to finish sending other packets
+    def send(self):
+        while True:
+            yield self.env.timeout(parameters.SLOT_DURATION)
 
-        if self.isSensing: # I'm sensing for another packet, I wait
-            yield self.sensing
+            # sensing phase
+            if self.phy.isSending:      # I cannot sense while sending
+                yield self.phy.transmission   # wait for my phy to finish sending other packets
 
-        self.sensing = self.env.process(self.waitIdleAndSend(macPkt))
-        yield self.sensing
+            if self.isSensing:          # I'm sensing for another packet, I wait
+                yield self.sensing
+
+            if len(self.queue) > 0:     # I have a packet to send
+                macPkt = self.queue.pop(0)
+                self.sensing = self.env.process(self.waitIdleAndSend(macPkt))
+                yield self.sensing
 
 
     def handleReceivedPacket(self, macPkt):
@@ -60,17 +71,16 @@ class Mac(object):
         try:
             yield self.env.timeout(parameters.ACK_TIMEOUT)  
             # timeout expired, resend
-            if macPkt.retransmitiontimes > parameters.MAX_RETRANSMITION_TIME:
+            if macPkt.retransmissionTimes > parameters.MAX_RETRANSMITION_TIME:
                 if parameters.PRINT_LOGS:
                     self.stats.logfailedRetransmission(macPkt.id,self.env.now)
                     print('Time %d: %s %s transmit to %s fails finally' % (self.env.now, self.name, macPkt.id, macPkt.destination))
             else:    
-                macPkt.retransmitiontimes += 1
+                macPkt.retransmissionTimes += 1
                 if parameters.PRINT_LOGS:
                     print('Time %d: %s %s transmit timeout without ACK from %s' % (self.env.now, self.name, macPkt.id, macPkt.destination))
                     print('Time %d: %s MAC retransmit %s to %s' % (self.env.now, self.name, macPkt.id, macPkt.destination))
                 self.pendingPackets.pop(macPkt.id)
-                self.retransmissionCounter[macPkt.id] += 1
 
                 # sensing phase
                 if self.phy.isSending:   # I cannot sense while sending
@@ -83,39 +93,36 @@ class Mac(object):
         except simpy.Interrupt:
             # ack received
             self.pendingPackets.pop(macPkt.id)
-            self.retransmissionCounter.pop(macPkt.id)
 
 
     def waitIdleAndSend(self, macPkt): 
         # 闲置等待并发送
         self.isSensing = True
-        timeout = parameters.DIFS_DURATION
-        backoff = 0
-        if self.retransmissionCounter[macPkt.id] != 0:  # add backoff in case of retransmission
-            backoff = random.randint(0, min(pow(2,self.retransmissionCounter[macPkt.id]-1)*parameters.CW_MIN, parameters.CW_MAX)-1) * parameters.SLOT_DURATION
-            timeout += backoff
+        if parameters.PRINT_LOGS:
+            print('Time %d, %s: MAC starts sensing for packet %s' % (self.env.now, self.name, macPkt.id))
+        difs = parameters.DIFS_DURATION
+        backoff = random.randint(0, min(pow(2,macPkt.retransmissionTimes)*parameters.CW_MIN, parameters.CW_MAX)-1) * parameters.SLOT_DURATION
+
         while True:
             try:
-                while timeout > 0:
-                    yield self.env.timeout(1)
-                    timeout -= 1
+                while difs > 0:
+                    yield self.env.timeout(parameters.SLOT_DURATION)
+                    difs -= parameters.SLOT_DURATION
 
                     # sensing phase
                     if self.phy.isSending:   # I cannot sense while sending
                         yield self.phy.transmission   # wait for my phy to finish sending other packets 
-                        timeout = parameters.DIFS_DURATION + backoff    # if a trasmission occours during the sensing I restart the sensing phase from scratch
+                        difs = parameters.DIFS_DURATION    # if a trasmission occurs during the sensing I restart the sensing phase from scratch
 
+                while backoff > 0:
+                    yield self.env.timeout(parameters.SLOT_DURATION)
+                    backoff -= parameters.SLOT_DURATION
+
+                if parameters.PRINT_LOGS:
+                    print('Time %d, %s: MAC gets access for packet %s' % (self.env.now, self.name, macPkt.id))
                 self.phy.send(macPkt)
                 self.pendingPackets[macPkt.id] = self.env.process(self.waitAck(macPkt))
                 self.isSensing = False
                 return
             except simpy.Interrupt:
-                if backoff == 0:    # need to add backoff, even if this is not a retransmission
-                    backoff = random.randint(0, parameters.CW_MIN-1) * parameters.SLOT_DURATION
-                    timeout = parameters.DIFS_DURATION + backoff
-                elif timeout > backoff: # backoff has not been consumed, new timeout is DIFS + backoff
-                    timeout = parameters.DIFS_DURATION + backoff
-                else:   # backoff has been partially consumed, new timeout is DIFS + remaining backoff
-                    backoff = timeout
-                    timeout = parameters.DIFS_DURATION + backoff
-                continue
+                difs = parameters.DIFS_DURATION

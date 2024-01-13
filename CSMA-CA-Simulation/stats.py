@@ -9,9 +9,10 @@ import parameters
 class Stats(object):
     def __init__(self,file):
         self.generatedPacketsTimes = {}     # packet id - timestamp of generation
-        self.deliveredPacketsTimes = {}    # packet id - timestamp of delivery
+        self.droppedPacketsTimes = {}       # packet id - timestamp of drop
+        self.deliveredPacketsTimes = {}     # packet id - timestamp of delivery
         self.failedRetransmissionTimes = {} # packet id - timestamp of failed retransmission attempt
-        self.retransmissionTimes = []   # timestamps of retransmissions
+        self.retransmissionTimes = []       # timestamps of retransmissions
         self.filename=file
 
     def plotNodePosition(self, nodes):
@@ -35,6 +36,8 @@ class Stats(object):
     def logGeneratedPacket(self, id, timestamp):
         self.generatedPacketsTimes[id] = timestamp
 
+    def logDroppedPacket(self, id, timestamp):
+        self.droppedPacketsTimes[id] = timestamp
 
     def logDeliveredPacket(self, id, timestamp):
         self.deliveredPacketsTimes[id] = timestamp

@@ -5,4 +5,4 @@ class MacPacket(object):
         self.length = length    # in bit
         self.id = id
         self.ack = ack  # bool
-        self.retransmitiontimes = 1  # 初始传输第一次可以看做重传
+        self.retransmissionTimes = 0
