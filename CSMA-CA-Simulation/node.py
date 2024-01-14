@@ -18,13 +18,13 @@ class Node(object):
 
     def send(self, destination, length, id):
         if parameters.PRINT_LOGS:
-            print('Time %d: %s sends %s to %s' % (self.env.now, self.name, id, destination))
+            print('Time %d, %s: Sends %s to %s' % (self.env.now, self.name, id, destination))
         yield self.env.process(self.mac.send(destination, length, id))
 
 
     def receive(self, id, source):
         if parameters.PRINT_LOGS:
-            print('Time %d: %s receives %s from %s' % (self.env.now, self.name, id, source))
+            print('Time %d, %s: Receives %s from %s' % (self.env.now, self.name, id, source))
 
 
     def keepSending(self, rate, destinationNodes):
@@ -36,7 +36,7 @@ class Node(object):
             length = random.randint(0, parameters.MAX_MAC_PAYLOAD_LENGTH)
             id = str(self.env.now) + '_' + self.name + '_' + destination
             if parameters.PRINT_LOGS:
-                print('Time %d: %s sends %s to %s' % (self.env.now, self.name, id, destination))
+                print('Time %d, %s: %s generated' % (self.env.now, self.name, id, destination))
             yield self.env.process(self.mac.send(destination, length, id))
 
 

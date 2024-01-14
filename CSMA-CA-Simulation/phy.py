@@ -12,7 +12,7 @@ class Phy(object):
         self.ether = self.mac.ether
         self.latitude = self.mac.latitude
         self.longitude = self.mac.longitude
-        self.listen = self.env.process(self.listen())
+        self.listening = self.env.process(self.listen())
         self.receivingPackets = []
         self.isSending = False      # keep radio state (Tx/Rx)
         self.transmission = None    # keep the transmitting process
@@ -20,7 +20,18 @@ class Phy(object):
 
     def send(self, macPkt):
         if not self.isSending:  # I do not send if I'm already sending
-            self.listen.interrupt(macPkt)
+            yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # RX -> TX
+            self.listening.interrupt()
+        
+        self.transmission = self.env.process(self.encapsulateAndTransmit(macPkt))
+        yield self.transmission
+
+        # restore listening
+        self.inChannel = self.ether.getInChannel(self)
+        yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # TX -> RX
+        if parameters.PRINT_LOGS:
+            print('Time %d, %s: PHY starts listening' % (self.env.now, self.name))
+        self.listening = self.env.process(self.listen())
 
 
     def encapsulateAndTransmit(self, macPkt):   # 封装和传输
@@ -41,14 +52,14 @@ class Phy(object):
             print('Time %d, %s: PHY will finish transmitting at %d' % (self.env.now, self.name, self.env.now + duration))
 
         while True:
-            if duration < parameters.SLOT_DURATION:
+            if duration <= parameters.SLOT_DURATION:
                 yield self.env.timeout(duration)    # wait only remaining time
                 break
             yield self.env.timeout(parameters.SLOT_DURATION) # send a signal every slot
             self.ether.transmit(phyPkt, self.latitude, self.longitude, False, False)  # beginOfPacket=False, endOfPacket=False
             duration -= parameters.SLOT_DURATION
 
-        self.ether.transmit(phyPkt, self.latitude, self.longitude, False, True)  # beginOfPacket=False, endOfPacket=True
+        yield self.ether.transmit(phyPkt, self.latitude, self.longitude, False, True)  # beginOfPacket=False, endOfPacket=True
         if macPkt.ack:
             if parameters.PRINT_LOGS:
                 print('Time %d, %s: PHY ends transmitting %s ACK' % (self.env.now, self.name, phyPkt.macPkt.id))
@@ -57,6 +68,7 @@ class Phy(object):
                 print('Time %d, %s: PHY ends transmitting %s' % (self.env.now, self.name, phyPkt.macPkt.id))
 
         self.isSending = False
+
 
     def listen(self):
         self.inChannel = self.ether.getInChannel(self)
@@ -90,19 +102,12 @@ class Phy(object):
                                 if parameters.PRINT_LOGS:
                                     print('Time %d, %s: %s collisioned' % (self.env.now, self.name, phyPkt.macPkt.id))
 
-            except simpy.Interrupt as macPkt:        # listening can be interrupted by a message sending
-                yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # RX -> TX
+            except simpy.Interrupt:        # listening can be interrupted by a message sending
                 if parameters.PRINT_LOGS:
                     print('Time %d, %s: PHY stops listening' % (self.env.now, self.name))
                 self.ether.removeInChannel(self.inChannel, self)
                 self.receivingPackets.clear()   # switch to TX mode, so drop all ongoing receptions
-
-                self.transmission = self.env.process(self.encapsulateAndTransmit(macPkt.cause))
-                yield self.transmission
-                self.inChannel = self.ether.getInChannel(self)
-                yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # TX -> RX
-                if parameters.PRINT_LOGS:
-                    print('Time %d, %s: PHY starts listening' % (self.env.now, self.name))
+                return
 
 
     # def computeSinr(self, phyPkt):

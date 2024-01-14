@@ -1,4 +1,5 @@
 from scipy.constants import c
+from math import ceil
 # c为光速
 
 # NB: sim time are nanoseconds, distances are in meters, powers in watt
@@ -16,8 +17,8 @@ SIM_TIME = 2*1e9
 
 PRINT_LOGS = True
 NUMBER_OF_NODES = 5
-STARTING_RATE = 1000
-TARGET_RATE = 1000
+STARTING_RATE = 100
+TARGET_RATE = 100
 
 NODE_POSITION = [[10,10],[19,5],[1,7],[16,13],[3,18]]    # NONE while NODE_POSITION remains random
 # The length of list NODE_POSITION should be the same as NUMBER_OF_NODES
@@ -52,7 +53,7 @@ MAX_MAC_QUEUE_SIZE = 10
 MAX_RETRANSMITION_TIME = 10
 # ack timeout = transmission time of biggest possible pkt + rtt for 300m distance + sifs + ack transmission time
 # ACK_TIMEOUT = (MAX_MAC_PAYLOAD_LENGTH + MAC_HEADER_LENGTH) * BIT_TRANSMISSION_TIME + PHY_PREAMBLE_TIME + 2 * round((300 / c) * pow(10, 9), 0) + SIFS_DURATION + ACK_LENGTH * BIT_TRANSMISSION_TIME
-ACK_TIMEOUT = SIFS_DURATION + ACK_LENGTH * BIT_TRANSMISSION_TIME
+ACK_TIMEOUT = SIFS_DURATION + ceil(ACK_LENGTH * BIT_TRANSMISSION_TIME / SLOT_DURATION + 1) * SLOT_DURATION
 
 def get_attrs(li):
     attrs = []
