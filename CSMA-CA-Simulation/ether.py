@@ -20,14 +20,15 @@ class Ether(object):
     def latencyAndAttenuation(self, phyPkt, sourceLatitude, sourceLongitude, destinationChannel, destinationNode, beginOfPacket, endOfPacket):
         # 延迟和衰减
         distance = self.computeDistance(sourceLatitude, sourceLongitude, destinationNode.latitude, destinationNode.longitude) + 1e-3 # add 1mm to avoid distance=0
-        delay = round((distance / c) * pow(10, 9), 0)
+        # delay = round((distance / c) * pow(10, 9), 0)
+        delay = 0   # ignore propagation delay
         yield self.env.timeout(delay)
         receivingPower = parameters.TRANSMITTING_POWER * pow(parameters.WAVELENGTH/(4 * pi * distance), 2) # NB. used FSPL propagation model with isotropic antennas
         phyPkt.power = receivingPower
 
-        if endOfPacket:
-            if random.randint(0,100) < parameters.PACKET_LOSS_RATE * 100:
-                phyPkt.corrupted = True
+        # if endOfPacket:
+        #     if random.randint(0,100) < parameters.PACKET_LOSS_RATE * 100:
+        #         phyPkt.corrupted = True
 
         return destinationChannel.put((phyPkt, beginOfPacket, endOfPacket))
 

@@ -1,4 +1,5 @@
 import simpy
+import math
 
 import phyPacket
 import parameters
@@ -13,7 +14,7 @@ class Phy(object):
         self.longitude = self.mac.longitude
         self.listen = self.env.process(self.listen())
         self.receivingPackets = []
-        self.isSending = False  # keep radio state (Tx/Rx)
+        self.isSending = False      # keep radio state (Tx/Rx)
         self.transmission = None    # keep the transmitting process
 
 
@@ -23,30 +24,21 @@ class Phy(object):
 
 
     def encapsulateAndTransmit(self, macPkt):   # 封装和传输
-        self.receivingPackets.clear() # I switch to transmitting mode, so I drop all ongoing receptions
-        yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) 
-        self.ether.removeInChannel(self.inChannel, self)
-        yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # simulate time of radio switching
-        if parameters.PRINT_LOGS:
-            print('Time %d: %s stops listening' % (self.env.now, self.name))
+        self.isSending = True
         phyPkt = phyPacket.PhyPacket(parameters.TRANSMITTING_POWER, False, macPkt) # start of packet
-
-        if not macPkt.ack:
-            if parameters.PRINT_LOGS:
-                print('Time %d: %s sends RTS signal to %s' % (self.env.now, self.name, phyPkt.macPkt.id.split('_')[-1]))
-            yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # simulate time of radio switching
-            if parameters.PRINT_LOGS:
-                print('Time %d: %s receives CTS signal from %s' % (self.env.now, self.name, phyPkt.macPkt.id.split('_')[-1]))
 
         if macPkt.ack:
             if parameters.PRINT_LOGS:
-                print('Time %d: %s PHY starts transmission of %s ACK' % (self.env.now, self.name, phyPkt.macPkt.id))
+                print('Time %d, %s: PHY starts transmitting %s ACK' % (self.env.now, self.name, phyPkt.macPkt.id))
         else:
             if parameters.PRINT_LOGS:
-                print('Time %d: %s PHY starts transmission of %s' % (self.env.now, self.name, phyPkt.macPkt.id))
+                print('Time %d, %s: PHY starts transmitting %s' % (self.env.now, self.name, phyPkt.macPkt.id))
         self.ether.transmit(phyPkt, self.latitude, self.longitude, True, False) # beginOfPacket=True, endOfPacket=False
 
         duration = macPkt.length * parameters.BIT_TRANSMISSION_TIME + parameters.PHY_PREAMBLE_TIME
+        duration = math.ceil(duration/parameters.SLOT_DURATION) * parameters.SLOT_DURATION  # round up to the nearest slot
+        if parameters.PRINT_LOGS:
+            print('Time %d, %s: PHY will finish transmitting at %d' % (self.env.now, self.name, self.env.now + duration))
 
         while True:
             if duration < parameters.SLOT_DURATION:
@@ -59,32 +51,31 @@ class Phy(object):
         self.ether.transmit(phyPkt, self.latitude, self.longitude, False, True)  # beginOfPacket=False, endOfPacket=True
         if macPkt.ack:
             if parameters.PRINT_LOGS:
-                print('Time %d: %s PHY ends transmission of %s ACK' % (self.env.now, self.name, phyPkt.macPkt.id))
+                print('Time %d, %s: PHY ends transmitting %s ACK' % (self.env.now, self.name, phyPkt.macPkt.id))
         else:
             if parameters.PRINT_LOGS:
-                print('Time %d: %s PHY ends transmission of %s' % (self.env.now, self.name, phyPkt.macPkt.id))
+                print('Time %d, %s: PHY ends transmitting %s' % (self.env.now, self.name, phyPkt.macPkt.id))
 
-        self.inChannel = self.ether.getInChannel(self)
-        yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # simulate time of radio switching
-        if parameters.PRINT_LOGS:
-            print('Time %d: %s starts listening' % (self.env.now, self.name))
-
+        self.isSending = False
 
     def listen(self):
         self.inChannel = self.ether.getInChannel(self)
         yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # simulate time of radio switching
         if parameters.PRINT_LOGS:
-            print('Time %d: %s starts listening' % (self.env.now, self.name))
+            print('Time %d, %s: PHY starts listening' % (self.env.now, self.name))
         while True:
             try:
                 (phyPkt, beginOfPacket, endOfPacket) = yield self.inChannel.get()
                 # the signal just received will interfere with other signals I'm receiving (and vice versa)
                 for receivingPkt in self.receivingPackets:
                     if receivingPkt != phyPkt:
-                        receivingPkt.interferingSignals[phyPkt.macPkt.id] = phyPkt.power
-                        phyPkt.interferingSignals[receivingPkt.vmacPkt.id] = receivingPkt.power
-                if endOfPacket and phyPkt.macPkt.id.split('_')[-1]==self.name:
-                    print('Time %d: %s receives signal %s from %s with power %e' % (self.env.now, self.name, phyPkt.macPkt.id, phyPkt.macPkt.source, phyPkt.power))
+                        # receivingPkt.interferingSignals[phyPkt.macPkt.id] = phyPkt.power
+                        # phyPkt.interferingSignals[receivingPkt.vmacPkt.id] = receivingPkt.power
+                        receivingPkt.corrupted = True
+                        phyPkt.corrupted = True
+                if endOfPacket and phyPkt.macPkt.destination == self.name:
+                    if parameters.PRINT_LOGS:
+                        print('Time %d, %s: PHY receives signal %s from %s with power %e' % (self.env.now, self.name, phyPkt.macPkt.id, phyPkt.macPkt.source, phyPkt.power))
                 if self.mac.isSensing:  # interrupt mac if it is sensing for idle channel
                     self.mac.sensing.interrupt()
                 if phyPkt.power > parameters.RADIO_SENSITIVITY: # decodable signal
@@ -94,19 +85,28 @@ class Phy(object):
                         if phyPkt in self.receivingPackets:
                             self.receivingPackets.remove(phyPkt)
                             if not phyPkt.corrupted:
-                                sinr = self.computeSinr(phyPkt)
-                                if sinr > 10:    # signal greater than noise and inteference
-                                    self.env.process(self.mac.handleReceivedPacket(phyPkt.macPkt))
+                                self.env.process(self.mac.handleReceivedPacket(phyPkt.macPkt))
+                            else:
+                                if parameters.PRINT_LOGS:
+                                    print('Time %d, %s: %s collisioned' % (self.env.now, self.name, phyPkt.macPkt.id))
 
             except simpy.Interrupt as macPkt:        # listening can be interrupted by a message sending
-                self.isSending = True
+                yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # RX -> TX
+                if parameters.PRINT_LOGS:
+                    print('Time %d, %s: PHY stops listening' % (self.env.now, self.name))
+                self.ether.removeInChannel(self.inChannel, self)
+                self.receivingPackets.clear()   # switch to TX mode, so drop all ongoing receptions
+
                 self.transmission = self.env.process(self.encapsulateAndTransmit(macPkt.cause))
                 yield self.transmission
-                self.isSending = False
+                self.inChannel = self.ether.getInChannel(self)
+                yield self.env.timeout(parameters.RADIO_SWITCHING_TIME) # TX -> RX
+                if parameters.PRINT_LOGS:
+                    print('Time %d, %s: PHY starts listening' % (self.env.now, self.name))
 
 
-    def computeSinr(self, phyPkt):
-        interference = 0
-        for interferingSignal in phyPkt.interferingSignals:
-            interference += float(phyPkt.interferingSignals[interferingSignal])
-        return phyPkt.power/(interference + parameters.NOISE_FLOOR)
+    # def computeSinr(self, phyPkt):
+    #     interference = 0
+    #     for interferingSignal in phyPkt.interferingSignals:
+    #         interference += float(phyPkt.interferingSignals[interferingSignal])
+    #     return phyPkt.power/(interference + parameters.NOISE_FLOOR)

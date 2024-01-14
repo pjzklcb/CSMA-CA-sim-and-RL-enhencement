@@ -54,7 +54,7 @@ class Mac(object):
         # 成功收到信息
         if macPkt.destination == self.name and not macPkt.ack:  # send ack to normal packets
             if parameters.PRINT_LOGS:
-                print('Time %d: %s MAC receives packet %s from %s and sends ACK' % (self.env.now, self.name, macPkt.id, macPkt.source))
+                print('Time %d, %s: MAC receives packet %s from %s and sends ACK' % (self.env.now, self.name, macPkt.id, macPkt.source))
             self.node.receive(macPkt.id, macPkt.source)
             self.stats.logDeliveredPacket(macPkt.id, self.env.now)
             ack = macPacket.MacPacket(self.name, macPkt.source, parameters.ACK_LENGTH, macPkt.id, True)
@@ -62,7 +62,7 @@ class Mac(object):
             self.phy.send(ack)
         elif macPkt.destination == self.name:
             if parameters.PRINT_LOGS:
-                print('Time %d: %s MAC receives ACK %s from %s' % (self.env.now, self.name, macPkt.id, macPkt.source))
+                print('Time %d, %s: MAC receives ACK %s from %s' % (self.env.now, self.name, macPkt.id, macPkt.source))
             if macPkt.id in self.pendingPackets:    # packet could not be in pendingPackets if timeout has expired but ack still arrive
                 self.pendingPackets[macPkt.id].interrupt()
 
@@ -74,12 +74,11 @@ class Mac(object):
             if macPkt.retransmissionTimes > parameters.MAX_RETRANSMITION_TIME:
                 if parameters.PRINT_LOGS:
                     self.stats.logfailedRetransmission(macPkt.id,self.env.now)
-                    print('Time %d: %s %s transmit to %s fails finally' % (self.env.now, self.name, macPkt.id, macPkt.destination))
+                    print('Time %d, %s: %s fails finally' % (self.env.now, self.name, macPkt.id, macPkt.destination))
             else:    
                 macPkt.retransmissionTimes += 1
                 if parameters.PRINT_LOGS:
-                    print('Time %d: %s %s transmit timeout without ACK from %s' % (self.env.now, self.name, macPkt.id, macPkt.destination))
-                    print('Time %d: %s MAC retransmit %s to %s' % (self.env.now, self.name, macPkt.id, macPkt.destination))
+                    print('Time %d, %s: %s timeout without ACK from %s' % (self.env.now, self.name, macPkt.id, macPkt.destination))
                 self.pendingPackets.pop(macPkt.id)
 
                 # sensing phase
@@ -87,11 +86,13 @@ class Mac(object):
                     yield self.phy.transmission   # wait for my phy to finish sending other packets
                 if self.isSensing: # I'm sensing for another packet, I wait
                     yield self.sensing
-
+                
+                if parameters.PRINT_LOGS:
+                    print('Time %d, %s: MAC plans to retransmit %s, retransmitCounter = %d' % (self.env.now, self.name, macPkt.id, macPkt.retransmissionTimes))
                 self.stats.logRetransmission(self.name,self.env.now)
                 self.sensing = self.env.process(self.waitIdleAndSend(macPkt))
         except simpy.Interrupt:
-            # ack received
+            # ACK received
             self.pendingPackets.pop(macPkt.id)
 
 
