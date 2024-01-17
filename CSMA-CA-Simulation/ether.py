@@ -11,30 +11,31 @@ class Ether(object):
         self.capacity = capacity
         self.channels = []
         self.listeningNodes = []
+        self.txPackets = []
 
 
     def computeDistance(self, senderLatitude, senderLongitude, receiverLatitude, receiverLongitude):
         return math.sqrt(pow(senderLatitude - receiverLatitude, 2) + pow(senderLongitude - receiverLongitude, 2))
 
 
-    def latencyAndAttenuation(self, phyPkt, sourceLatitude, sourceLongitude, destinationChannel, destinationNode, beginOfPacket, endOfPacket):
+    def latencyAndAttenuation(self, phyPkt, srcLatitude, srcLongitude, dstChannel, dstNode, beginOfPacket, endOfPacket):
         # 延迟和衰减
-        distance = self.computeDistance(sourceLatitude, sourceLongitude, destinationNode.latitude, destinationNode.longitude) + 1e-3 # add 1mm to avoid distance=0
+        # distance = self.computeDistance(srcLatitude, srcLongitude, dstNode.latitude, dstNode.longitude) + 1e-3 # add 1mm to avoid distance=0
         # delay = round((distance / c) * pow(10, 9), 0)
-        delay = 0   # ignore propagation delay
-        yield self.env.timeout(delay)
-        receivingPower = parameters.TRANSMITTING_POWER * pow(parameters.WAVELENGTH/(4 * pi * distance), 2) # NB. used FSPL propagation model with isotropic antennas
+        # receivingPower = parameters.TRANSMITTING_POWER * pow(parameters.WAVELENGTH/(4 * pi * distance), 2) # NB. used FSPL propagation model with isotropic antennas
+        delay, receivingPower = 0, 1e-7   # ignore propagation loss and delay
         phyPkt.power = receivingPower
+        yield self.env.timeout(delay)
 
-        # if endOfPacket:
-        #     if random.randint(0,100) < parameters.PACKET_LOSS_RATE * 100:
-        #         phyPkt.corrupted = True
-
-        return destinationChannel.put((phyPkt, beginOfPacket, endOfPacket))
+        return dstChannel.put((phyPkt, beginOfPacket, endOfPacket))
 
 
-    def transmit(self, phyPkt, sourceLatitude, sourceLongitude, beginOfPacket, endOfPacket):
-        events = [self.env.process(self.latencyAndAttenuation(phyPkt, sourceLatitude, sourceLongitude, destinationChannel, destinationNode, beginOfPacket, endOfPacket)) for destinationChannel, destinationNode in zip(self.channels, self.listeningNodes)]
+    def transmit(self, phyPkt, srcLatitude, srcLongitude, beginOfPacket, endOfPacket):
+        events = [self.env.process(self.latencyAndAttenuation(phyPkt, srcLatitude, srcLongitude, dstChannel, dstNode, beginOfPacket, endOfPacket)) for dstChannel, dstNode in zip(self.channels, self.listeningNodes)]
+        if beginOfPacket:
+            self.txPackets.append(phyPkt)
+        elif endOfPacket:
+            self.txPackets.remove(phyPkt)
         return self.env.all_of(events)
 
 

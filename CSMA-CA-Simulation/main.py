@@ -67,7 +67,7 @@ def main():
     #作图
     statistics.plotNodePosition(nodes)
     statistics.plotCumulativePackets()
-    # statistics.plotThroughput()
+    statistics.plotThroughput()
     statistics.plotDelays()
     statistics.plotRetransmissions()
     statistics.plotfailedPacket()

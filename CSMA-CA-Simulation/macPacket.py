@@ -5,4 +5,5 @@ class MacPacket(object):
         self.length = length    # in bit
         self.id = id
         self.ack = ack  # bool
-        self.retransmissionTimes = 0
+        self.retransmissionTimes = 1    # first transmission is not a retransmission
+        self.transmitTime = 0
