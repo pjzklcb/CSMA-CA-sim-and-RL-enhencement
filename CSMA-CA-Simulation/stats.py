@@ -66,7 +66,7 @@ class Stats(object):
             for id, beginTime, endTime in self.deliveredPacketsTimes:
                 writer.writerow([id, beginTime, endTime])
 
-        timeSlots = np.arange(int(parameters.SIM_TIME / parameters.SLOT_DURATION)) * parameters.SLOT_DURATION * 1e-9
+        timeSlots = np.arange(int(parameters.SIM_TIME / parameters.SLOT_DURATION)) * (parameters.SLOT_DURATION * 1e-9)
         diff = [[0]*len(timeSlots) for _ in range(parameters.NUMBER_OF_NODES-1)]
         for id, beginTime, endTime in self.deliveredPacketsTimes:
             nodeIdx = int(id.split('_')[1][4:])

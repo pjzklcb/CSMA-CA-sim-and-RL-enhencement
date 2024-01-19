@@ -108,9 +108,8 @@ class Mac(object):
         backoff = random.randint(0, min(pow(2,macPkt.retransmissionTimes-1)*parameters.CW_MIN, parameters.CW_MAX)-1) * parameters.SLOT_DURATION
 
         currentEndTime = self.env.now
-        for packets in self.ether.txPackets:
-            if packets.endTime > currentEndTime:
-                currentEndTime = packets.endTime
+        for packets in self.phy.receivingPackets:
+            currentEndTime = max(currentEndTime, packets.endTime)
         
         while True:
             try:

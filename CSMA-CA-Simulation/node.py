@@ -46,7 +46,7 @@ class Node(object):
             yield self.env.timeout(round(random.expovariate(startingRate + increasingSpeed * self.env.now) * 1e9))  # inter-messages time is a poisson process
 
             destination = destinationNodes[random.randint(0, len(destinationNodes)-1)]
-            length = random.randint(parameters.MAX_MAC_PAYLOAD_LENGTH, parameters.MAX_MAC_PAYLOAD_LENGTH)       # PAYLOAD_LENGTH
+            length = random.randint(parameters.MIN_MAC_PAYLOAD_LENGTH, parameters.MAX_MAC_PAYLOAD_LENGTH)       # PAYLOAD_LENGTH
             id = str(self.env.now) + '_' + self.name + '_' + destination
             if parameters.PRINT_LOGS:
                 print('Time %d, %s: %s generated' % (self.env.now, self.name, id))

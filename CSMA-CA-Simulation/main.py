@@ -30,7 +30,7 @@ class Logger(object):
 def main():
     random.seed(parameters.RANDOM_SEED)
 
-    file='results_'+datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    file='results_'+parameters.AC+'_lambda_'+str(parameters.TARGET_RATE)+datetime.datetime.now().strftime("_%Y-%m-%d-%H-%M-%S")
     sys.stdout = Logger(file)
     print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+"-sim.log\n\n"+parameters.s+'\nLog starting\n------------------------\n')
 

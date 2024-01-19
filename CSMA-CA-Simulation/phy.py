@@ -70,8 +70,9 @@ class Phy(object):
             print('Time %d, %s: PHY starts listening' % (self.env.now, self.name))
 
         for packet in self.ether.txPackets:
-            packet.corrupted = True
-            self.receivingPackets.append(packet)
+            if packet.power > parameters.RADIO_SENSITIVITY: # decodable signal
+                packet.corrupted = True
+                self.receivingPackets.append(packet)
 
         while True:
             try:
@@ -83,11 +84,11 @@ class Phy(object):
                         # Interrupt MAC if it is sensing for IDLE channel
                         if self.mac.isSensing:  
                             self.mac.sensing.interrupt(phyPkt.endTime)
+                    elif endOfPacket:   # end of packet
                         for receivingPkt in self.receivingPackets:
                             if receivingPkt != phyPkt:
                                 receivingPkt.corrupted = True
                                 phyPkt.corrupted = True
-                    elif endOfPacket:   # end of packet
                         if phyPkt in self.receivingPackets:
                             self.receivingPackets.remove(phyPkt)
                             if not phyPkt.corrupted:
